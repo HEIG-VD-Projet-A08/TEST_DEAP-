@@ -25,13 +25,19 @@ from deap import base
 from deap import creator
 from deap import tools
 
-creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
+
+# CXPB  is the probability with which two individuals
+#       are crossed
+#
+# MUTPB is the probability for mutating an individual
+CXPB, MUTPB = 0.9, 0.7
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
-target = "YEYEYEYEYE"
-minSizeWord = 4
-maxSizeWord = 20
-individualSize = 20
+target = "YEYA"
+minSizeWord = len(target)+1
+maxSizeWord = len(target)+1
+individualSize = 100
 populationSize = 100
 
 
@@ -50,6 +56,17 @@ def compareString(individual, target):
             counter += 1
     return counter
 
+
+def mutateText(individual,indpb):
+
+    for i in range(len(individual)):
+        list1 = list(individual[i])
+        for j in range(len(individual[i])):
+            if random.random() < indpb:
+                list1[j]=proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
+        individual[i] =''.join(list1)
+
+    return individual,
 
 toolbox = base.Toolbox()
 
@@ -86,7 +103,7 @@ toolbox.register("mate", tools.cxTwoPoint)
 
 # register a mutation operator with a probability to
 # flip each attribute/gene of 0.05
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("mutate", mutateText, indpb=0.05)
 
 # operator for selecting individuals for breeding the next
 # generation: each individual of the current generation
@@ -98,16 +115,12 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 # ----------
 
 def main():
-    random.seed(64)
+    #random.seed(64)
 
     # create an initial population of 300 individuals (where
     # each individual is a list of integers)
 
-    # CXPB  is the probability with which two individuals
-    #       are crossed
-    #
-    # MUTPB is the probability for mutating an individual
-    CXPB, MUTPB = 0.8, 0.02
+
 
     print("Start of evolution")
     pop = toolbox.population(n=populationSize)
@@ -147,12 +160,12 @@ def main():
                 del child1.fitness.values
                 del child2.fitness.values
 
-        # for mutant in offspring:
+        for mutant in offspring:
 
         # mutate an individual with probability MUTPB
-        # if random.random() < MUTPB:
-        # toolbox.mutate(mutant)
-        # del mutant.fitness.values
+            if random.random() < MUTPB:
+                toolbox.mutate(mutant)
+            del mutant.fitness.values
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
