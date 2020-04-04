@@ -34,9 +34,9 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 # MUTPB is the probability for mutating an individual
 CXPB, MUTPB = 0.9, 0.3
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
-target = "YDE"
-minSizeWord = len(target)
-maxSizeWord = len(target)+1
+target = "MLMPKKNRIAIHELLFKEGVMVAKKDVHMPKHPELADKNVPNLHVMKAMQSLKSRGCVKEQFAWRHFYWYLTNEGSQYLR"
+minSizeWord = 4
+maxSizeWord = 10
 individualSize = 100
 populationSize = 100
 
@@ -52,21 +52,21 @@ def generateText(intervalMin, intervalMax):
 def compareString(individual, target):
     counter = 0
     for i in range(0, len(individual)):
-        if target.find( individual[i])!=-1:
+        if target.find(individual[i]) != -1:
             counter += 1
     return counter
 
 
-def mutateText(individual,indpb):
-
+def mutateText(individual, indpb):
     for i in range(len(individual)):
         list1 = list(individual[i])
         for j in range(len(individual[i])):
             if random.random() < indpb:
-                list1[j]=proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
-        individual[i] =''.join(list1)
+                list1[j] = proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
+        individual[i] = ''.join(list1)
 
     return individual,
+
 
 toolbox = base.Toolbox()
 
@@ -89,7 +89,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # the goal ('fitness') function to be maximized
 def evalOneMax(individual):
-    return compareString(individual,target),
+    return compareString(individual, target),
 
 
 # ----------
@@ -120,8 +120,6 @@ def main():
     # create an initial population of 300 individuals (where
     # each individual is a list of integers)
 
-
-
     print("Start of evolution")
     pop = toolbox.population(n=populationSize)
     # Evaluate the entire population
@@ -138,7 +136,7 @@ def main():
     g = 0
 
     # Begin the evolution
-    while max(fits) < individualSize/1.7 and  g<50000:
+    while max(fits) < 25 and g < 10000:
         # A new generation
         g = g + 1
         print("-- Generation %i --" % g)
@@ -162,7 +160,7 @@ def main():
 
         for mutant in offspring:
 
-        # mutate an individual with probability MUTPB
+            # mutate an individual with probability MUTPB
             if random.random() < MUTPB:
                 toolbox.mutate(mutant)
             del mutant.fitness.values
@@ -194,6 +192,7 @@ def main():
     print("-- End of (successful) evolution --")
 
     best_ind = tools.selBest(pop, 1)[0]
+
     print("Best individual is %s, %s" % (best_ind, best_ind.fitness.values))
 
 
