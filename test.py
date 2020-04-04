@@ -64,7 +64,7 @@ def mutateText(individual, indpb):
             if random.random() < indpb:
                 list1[j] = proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
         individual[i] = ''.join(list1)
-
+    tools.mutShuffleIndexes(individual,indpb)
     return individual,
 
 
@@ -136,7 +136,7 @@ def main():
     g = 0
 
     # Begin the evolution
-    while max(fits) < 25 and g < 10000:
+    while max(fits) < 100 and g < 10000:
         # A new generation
         g = g + 1
         print("-- Generation %i --" % g)
