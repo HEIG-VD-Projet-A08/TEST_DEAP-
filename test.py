@@ -25,12 +25,12 @@ from deap import base
 from deap import creator
 from deap import tools
 
-creator.create("FitnessMax", base.Fitness, weights=(-1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(1,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
-target = "YEYEYEYEYE"
-minSizeWord = 4
-maxSizeWord = 20
+target = "KI"
+minSizeWord = len(target) + 1
+maxSizeWord = len(target) + 1
 individualSize = 20
 populationSize = 100
 
@@ -86,7 +86,7 @@ toolbox.register("mate", tools.cxTwoPoint)
 
 # register a mutation operator with a probability to
 # flip each attribute/gene of 0.05
-toolbox.register("mutate", tools.mutFlipBit, indpb=0.05)
+toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.05)
 
 # operator for selecting individuals for breeding the next
 # generation: each individual of the current generation
@@ -98,7 +98,7 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 # ----------
 
 def main():
-    random.seed(64)
+    #random.seed(67)
 
     # create an initial population of 300 individuals (where
     # each individual is a list of integers)
@@ -147,12 +147,12 @@ def main():
                 del child1.fitness.values
                 del child2.fitness.values
 
-        # for mutant in offspring:
+        for mutant in offspring:
 
-        # mutate an individual with probability MUTPB
-        # if random.random() < MUTPB:
-        # toolbox.mutate(mutant)
-        # del mutant.fitness.values
+            # mutate an individual with probability MUTPB
+            if random.random() < MUTPB:
+                toolbox.mutate(mutant)
+            del mutant.fitness.values
 
         # Evaluate the individuals with an invalid fitness
         invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
