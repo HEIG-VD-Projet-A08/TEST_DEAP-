@@ -32,10 +32,10 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 #       are crossed
 #
 # MUTPB is the probability for mutating an individual
-CXPB, MUTPB = 0.9, 0.7
+CXPB, MUTPB = 0.9, 0.3
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
-target = "YEYA"
-minSizeWord = len(target)+1
+target = "YDE"
+minSizeWord = len(target)
 maxSizeWord = len(target)+1
 individualSize = 100
 populationSize = 100
@@ -52,7 +52,7 @@ def generateText(intervalMin, intervalMax):
 def compareString(individual, target):
     counter = 0
     for i in range(0, len(individual)):
-        if target == individual[i]:
+        if target.find( individual[i])!=-1:
             counter += 1
     return counter
 
@@ -115,7 +115,7 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 # ----------
 
 def main():
-    #random.seed(64)
+    random.seed(64)
 
     # create an initial population of 300 individuals (where
     # each individual is a list of integers)
@@ -138,7 +138,7 @@ def main():
     g = 0
 
     # Begin the evolution
-    while max(fits) < individualSize and g < 1000:
+    while max(fits) < individualSize/1.7 and  g<50000:
         # A new generation
         g = g + 1
         print("-- Generation %i --" % g)
