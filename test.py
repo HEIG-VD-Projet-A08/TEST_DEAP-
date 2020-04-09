@@ -24,50 +24,113 @@ from random import randint
 from deap import base
 from deap import creator
 from deap import tools
-
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
+creator.create("FitnessMax", base.Fitness, weights=(1.0,0.4))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 # CXPB  is the probability with which two individuals
 #       are crossed
 #
 # MUTPB is the probability for mutating an individual
-CXPB, MUTPB = 0.9, 0.3
+CXPB, MUTPB = 0.4, 0.3
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 target = "MLMPKKNRIAIHELLFKEGVMVAKKDVHMPKHPELADKNVPNLHVMKAMQSLKSRGCVKEQFAWRHFYWYLTNEGSQYLR"
 minSizeWord = 4
 maxSizeWord = 10
 individualSize = 100
-populationSize = 100
+populationSize = 30
 
 
 def generateText(intervalMin, intervalMax):
     size = randint(intervalMin, intervalMax)
     string = ""
-    for i in range(0, size - 1):
+    for i in range(0, size ):
         string += proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
     return string
 
 
 def compareString(individual, target):
     counter = 0
+    list =[]
+    length =0
     for i in range(0, len(individual)):
-        if target.find(individual[i]) != -1:
-            counter += 1
-    return counter
+        length += (len(individual[i])-minSizeWord)/(maxSizeWord-minSizeWord)
+        counter += fuzz.partial_ratio(target,individual[i])/100
+    return counter,length
+
+def switchChar(individual, indpb):
+    """Shuffle the attributes of the input individual and return the mutant.
+    The *individual* is expected to be a :term:`sequence`. The *indpb* argument is the
+    probability of each attribute to be moved. Usually this mutation is applied on
+    vector of indices.
+
+    :param individual: Individual to be mutated.
+    :param indpb: Independent probability for each attribute to be exchanged to
+                  another position.
+    :returns: A tuple of one individual.
+
+    This function uses the :func:`~random.random` and :func:`~random.randint`
+    functions from the python base :mod:`random` module.
+    """
+    size = len(individual)
+    for i in range(size):
+        if random.random() < indpb:
+            swap_indx = random.randint(0, size - 2)
+            if swap_indx >= i:
+                swap_indx += 1
+            tmp = individual[i]
+            individual[i] = individual[swap_indx]
+            individual[swap_indx]=tmp
+
+    return individual
 
 
 def mutateText(individual, indpb):
+
     for i in range(len(individual)):
         list1 = list(individual[i])
         for j in range(len(individual[i])):
             if random.random() < indpb:
                 list1[j] = proteinAlphabet[randint(0, len(proteinAlphabet) - 1)]
         individual[i] = ''.join(list1)
-    tools.mutShuffleIndexes(individual,indpb)
+    individual=switchChar(individual,indpb)
+
     return individual,
 
 
+def crossoverChar(ind1, ind2,indpb=1):
+    """Executes a two-point crossover on the input :term:`sequence`
+    individuals. The two individuals are modified in place and both keep
+    their original length.
+
+    :param ind1: The first individual participating in the crossover.
+    :param ind2: The second individual participating in the crossover.
+    :returns: A tuple of two individuals.
+
+    This function uses the :func:`~random.randint` function from the Python
+    base :mod:`random` module.
+    """
+    size = min(len(ind1), len(ind2))
+    cxpoint1 = random.randint(1, size)
+    cxpoint2 = random.randint(1, size - 1)
+    if cxpoint2 >= cxpoint1:
+        cxpoint2 += 1
+    else:  # Swap the two cx points
+        cxpoint1, cxpoint2 = cxpoint2, cxpoint1
+    for i in range(0,len(ind1)):
+        if random.random() < indpb:
+
+            tmp=ind2[i][:cxpoint1]
+            tmp+=ind1[i][cxpoint1:cxpoint2]
+            tmp += ind2[i][cxpoint2:]
+            tmp2 =ind1[i][:cxpoint1]
+            tmp2 +=ind2[i][cxpoint1:cxpoint2]
+            tmp2 += ind1[i][cxpoint2:]
+            ind1[i]=tmp
+            ind2[i]=tmp2
+
+    return ind1, ind2
 toolbox = base.Toolbox()
 
 # Attribute generator
@@ -89,7 +152,7 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # the goal ('fitness') function to be maximized
 def evalOneMax(individual):
-    return compareString(individual, target),
+    return compareString(individual, target)
 
 
 # ----------
@@ -115,7 +178,7 @@ toolbox.register("select", tools.selTournament, tournsize=3)
 # ----------
 
 def main():
-    random.seed(64)
+    #random.seed(64)
 
     # create an initial population of 300 individuals (where
     # each individual is a list of integers)
@@ -126,7 +189,6 @@ def main():
     fitnesses = list(map(toolbox.evaluate, pop))
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
-
     print("  Evaluated %i individuals" % len(pop))
 
     # Extracting all the fitnesses of
@@ -136,7 +198,7 @@ def main():
     g = 0
 
     # Begin the evolution
-    while max(fits) < 100 and g < 10000:
+    while max(fits) < individualSize/1.4 and g < 700:
         # A new generation
         g = g + 1
         print("-- Generation %i --" % g)
@@ -192,8 +254,9 @@ def main():
     print("-- End of (successful) evolution --")
 
     best_ind = tools.selBest(pop, 1)[0]
-
-    print("Best individual is %s, %s" % (best_ind, best_ind.fitness.values))
+    worst_ind = tools.selWorst(pop,1)[0]
+    print("Best individual is %s, %s\n" % (best_ind, best_ind.fitness.values))
+    print("worst individual is %s, %s" % (worst_ind, worst_ind.fitness.values))
 
 
 if __name__ == "__main__":
