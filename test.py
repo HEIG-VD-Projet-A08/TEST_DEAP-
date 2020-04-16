@@ -24,9 +24,9 @@ from random import randint
 from deap import base
 from deap import creator
 from deap import tools
-from fuzzywuzzy import fuzz
-from fuzzywuzzy import process
-creator.create("FitnessMax", base.Fitness, weights=(1.0,0.4))
+import os
+
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 # CXPB  is the probability with which two individuals
@@ -36,11 +36,11 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 CXPB, MUTPB = 0.4, 0.3
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 target = "MLMPKKNRIAIHELLFKEGVMVAKKDVHMPKHPELADKNVPNLHVMKAMQSLKSRGCVKEQFAWRHFYWYLTNEGSQYLR"
-minSizeWord = 4
-maxSizeWord = 10
-individualSize = 100
-populationSize = 30
-
+minSizeWord = 30
+maxSizeWord = 50
+individualSize = 10
+populationSize = 100
+eValue=10
 
 def generateText(intervalMin, intervalMax):
     size = randint(intervalMin, intervalMax)
@@ -52,12 +52,11 @@ def generateText(intervalMin, intervalMax):
 
 def compareString(individual, target):
     counter = 0
-    list =[]
     length =0
     for i in range(0, len(individual)):
         length += (len(individual[i])-minSizeWord)/(maxSizeWord-minSizeWord)
-        counter += fuzz.partial_ratio(target,individual[i])/100
-    return counter,length
+    return counter,
+
 
 def switchChar(individual, indpb):
     """Shuffle the attributes of the input individual and return the mutant.
@@ -124,8 +123,8 @@ def crossoverChar(ind1, ind2,indpb=1):
             tmp=ind2[i][:cxpoint1]
             tmp+=ind1[i][cxpoint1:cxpoint2]
             tmp += ind2[i][cxpoint2:]
-            tmp2 =ind1[i][:cxpoint1]
-            tmp2 +=ind2[i][cxpoint1:cxpoint2]
+            tmp2 = ind1[i][:cxpoint1]
+            tmp2 += ind2[i][cxpoint1:cxpoint2]
             tmp2 += ind1[i][cxpoint2:]
             ind1[i]=tmp
             ind2[i]=tmp2
@@ -151,8 +150,25 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 
 # the goal ('fitness') function to be maximized
-def evalOneMax(individual):
-    return compareString(individual, target)
+def evalOneMax(individuals):
+
+    fastaFile = open("../ncbi-blast-2.10.0+/bin/toBlast.fasta","w")
+    for individual in individuals:
+        fastaFile.write(">"+individual+"\n"+individual+"\n")
+    fastaFile.close()
+    global eValue
+    os.system("../ncbi-blast-2.10.0+/bin/blastp -db ../ncbi-blast-2.10.0+/bin/in.fasta -query ../ncbi-blast-2.10.0+/bin/toBlast.fasta -out result -evalue "+ str(eValue)+" -word_size 2 -gapopen 10 -gapextend 1 -num_threads 4 -task blastp -outfmt '6 saccver  qacc ppos qseq sseq qcovs' -subject_besthit")
+
+
+    sum = 0
+    if os.path.getsize("result")!=0:
+        fastaFile =open("result","r")
+
+        for line in fastaFile:
+            elements = line.split('\t')
+            sum += float(elements[2])
+        fastaFile.close()
+    return sum,
 
 
 # ----------
@@ -186,7 +202,7 @@ def main():
     print("Start of evolution")
     pop = toolbox.population(n=populationSize)
     # Evaluate the entire population
-    fitnesses = list(map(toolbox.evaluate, pop))
+    fitnesses = list(map(toolbox.evaluate,pop))
     for ind, fit in zip(pop, fitnesses):
         ind.fitness.values = fit
     print("  Evaluated %i individuals" % len(pop))
@@ -198,7 +214,12 @@ def main():
     g = 0
 
     # Begin the evolution
-    while max(fits) < individualSize/1.4 and g < 700:
+    while  g < 100:
+        global eValue
+        if eValue >= 0.00001:
+            eValue = eValue / 2
+
+        #eValue = eValue /1.2
         # A new generation
         g = g + 1
         print("-- Generation %i --" % g)
@@ -250,7 +271,9 @@ def main():
         print("  Max %s" % max(fits))
         print("  Avg %s" % mean)
         print("  Std %s" % std)
-
+        print("evalue %0.10f" %eValue)
+        if max(fits)< 500:
+            eValue= eValue*2
     print("-- End of (successful) evolution --")
 
     best_ind = tools.selBest(pop, 1)[0]
