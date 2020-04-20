@@ -26,7 +26,7 @@ from deap import creator
 from deap import tools
 import os
 
-creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("FitnessMax", base.Fitness, weights=(0.5,1,10))
 creator.create("Individual", list, fitness=creator.FitnessMax)
 
 # CXPB  is the probability with which two individuals
@@ -36,12 +36,13 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 CXPB, MUTPB = 0.4, 0.3
 proteinAlphabet = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 target = "MLMPKKNRIAIHELLFKEGVMVAKKDVHMPKHPELADKNVPNLHVMKAMQSLKSRGCVKEQFAWRHFYWYLTNEGSQYLR"
-minSizeWord = 30
-maxSizeWord = 50
+minSizeWord = 10
+maxSizeWord = 20
 individualSize = 10
 populationSize = 100
 eValue=10
-
+bestResult=0
+g = 0
 def generateText(intervalMin, intervalMax):
     size = randint(intervalMin, intervalMax)
     string = ""
@@ -86,7 +87,12 @@ def switchChar(individual, indpb):
 
 
 def mutateText(individual, indpb):
+    for i in range(len(individual)):
+        if random.random() < indpb:
+            individual[i] = generateText(minSizeWord,maxSizeWord)
+    return individual,
 
+"""
     for i in range(len(individual)):
         list1 = list(individual[i])
         for j in range(len(individual[i])):
@@ -96,6 +102,7 @@ def mutateText(individual, indpb):
     individual=switchChar(individual,indpb)
 
     return individual,
+"""
 
 
 def crossoverChar(ind1, ind2,indpb=1):
@@ -151,24 +158,59 @@ toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 # the goal ('fitness') function to be maximized
 def evalOneMax(individuals):
+    global g, bestResult
 
     fastaFile = open("../ncbi-blast-2.10.0+/bin/toBlast.fasta","w")
-    for individual in individuals:
-        fastaFile.write(">"+individual+"\n"+individual+"\n")
+    individualList =iter(individuals)
+    differentElem=[]
+    differentElem.append(next(individualList))
+    fastaFile.write(">" + differentElem[-1] + "\n" + differentElem[-1] + "\n")
     fastaFile.close()
+    for individual in individualList:
+        tmpFile = open("../ncbi-blast-2.10.0+/bin/tmp.fasta","w")
+        tmpFile.write(">" + individual + "\n" +individual + "\n")
+        tmpFile.close()
+        os.system("../ncbi-blast-2.10.0+/bin/blastp  -subject ../ncbi-blast-2.10.0+/bin/tmp.fasta -query ../ncbi-blast-2.10.0+/bin/toBlast.fasta -out resultSim -evalue 0.1 -word_size 2 -gapopen 10 -gapextend 1  -task blastp -outfmt '6 saccver  qacc ppos qseq sseq qcovs' -subject_besthit")
+        result = open("resultSim", "r")
+        m=0
+        for line in result:
+            elements = line.split('\t')
+            m+=1
+            if float(elements[2]) < 90:
+                fastaFile = open("../ncbi-blast-2.10.0+/bin/toBlast.fasta", "a")
+                fastaFile.write(">" + individual + "\n" + individual + "\n")
+                fastaFile.close()
+        result.close()
+        if m ==0:
+            fastaFile = open("../ncbi-blast-2.10.0+/bin/toBlast.fasta", "a")
+            fastaFile.write(">" + individual + "\n" + individual + "\n")
+            fastaFile.close()
+    os.system("rm ../ncbi-blast-2.10.0+/bin/tmp.fasta")
+
     global eValue
     os.system("../ncbi-blast-2.10.0+/bin/blastp -db ../ncbi-blast-2.10.0+/bin/in.fasta -query ../ncbi-blast-2.10.0+/bin/toBlast.fasta -out result -evalue "+ str(eValue)+" -word_size 2 -gapopen 10 -gapextend 1 -num_threads 4 -task blastp -outfmt '6 saccver  qacc ppos qseq sseq qcovs' -subject_besthit")
 
 
     sum = 0
+    nbrElem=0
+    average=0
+    nbrDifferentString=[]
+
     if os.path.getsize("result")!=0:
         fastaFile =open("result","r")
 
         for line in fastaFile:
             elements = line.split('\t')
             sum += float(elements[2])
+            nbrElem +=1
+            if elements[1] not in nbrDifferentString:
+                nbrDifferentString.append(elements[1])
         fastaFile.close()
-    return sum,
+        average = sum/nbrElem
+    if sum > bestResult:
+        os.system("cp result bestRatio/result"+str(g))
+        bestResult = sum
+    return sum,average,len(nbrDifferentString)
 
 
 # ----------
@@ -211,12 +253,14 @@ def main():
     fits = [ind.fitness.values[0] for ind in pop]
 
     # Variable keeping track of the number of generations
-    g = 0
 
+    global g
     # Begin the evolution
     while  g < 100:
         global eValue
-        if eValue >= 0.00001:
+        global bestResult
+        bestResult =0
+        if eValue >= 0.001:
             eValue = eValue / 2
 
         #eValue = eValue /1.2
@@ -261,6 +305,10 @@ def main():
 
         # Gather all the fitnesses in one list and print the stats
         fits = [ind.fitness.values[0] for ind in pop]
+        ind1 =pop[0]
+        for ind in pop:
+            if ind1.fitness.values[0] < ind.fitness.values[0]:
+                ind1 = ind
 
         length = len(pop)
         mean = sum(fits) / length
@@ -268,6 +316,7 @@ def main():
         std = abs(sum2 / length - mean ** 2) ** 0.5
 
         print("  Min %s" % min(fits))
+        print("  ratio %s" % ind1.fitness.values[1])
         print("  Max %s" % max(fits))
         print("  Avg %s" % mean)
         print("  Std %s" % std)
